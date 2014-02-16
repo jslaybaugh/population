@@ -1,0 +1,6 @@
+\\psf\Home\Projects\Population\population\bin\Debug\population.exe.config
+\\psf\Home\Projects\Population\population\bin\Debug\population.exe
+\\psf\Home\Projects\Population\population\bin\Debug\population.pdb
+\\psf\Home\Projects\Population\population\obj\Debug\population.csprojResolveAssemblyReference.cache
+\\psf\Home\Projects\Population\population\obj\Debug\population.exe
+\\psf\Home\Projects\Population\population\obj\Debug\population.pdb
