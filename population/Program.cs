@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace population
@@ -70,6 +71,49 @@ namespace population
 			}
 		}
 
+		class LifeProcess
+		{
+			public void DoWork()
+			{
+				foreach (var person in _People)
+				{
+					person.LiveAYear();
+				}
+			}
+		}
+
+		class DeathProcess
+		{
+			public void DoWork()
+			{
+				foreach (var id in _Dead)
+				{
+					_People.Remove(_People.FirstOrDefault(x => x.Id == id));
+				}
+
+				_Dead = new List<Guid>();
+			}
+		}
+
+		class BirthProcess
+		{
+			private int _thisYear;
+
+			public BirthProcess(int thisYear)
+			{
+				_thisYear = thisYear;
+			}
+			public void DoWork()
+			{
+				for (int j = 0; j < _NewPeopleQuantity; j++)
+				{
+					_People.Add(new Person(_thisYear, null, null));
+				}
+
+				_NewPeopleQuantity = 0;
+			}
+		}
+
 		private static List<Person> _People;
 		private static int _NewPeopleQuantity;
 		private static List<Guid> _Dead;
@@ -111,23 +155,35 @@ namespace population
 			for (int i = 0; i < _EndYear; i++)
 			{
 				Console.WriteLine("Year {0}: {1} People", i, _People.Count);
-				foreach (var person in _People)
-				{
-					person.LiveAYear();
-				}
 
-				foreach (var id in _Dead)
-				{
-					_People.Remove(_People.FirstOrDefault(x => x.Id == id));
-				}
+				var life = new LifeProcess();
+				var lifeThread = new Thread(new ThreadStart(life.DoWork));
 
-				for (int j = 0; j < _NewPeopleQuantity; j++)
-				{
-					_People.Add(new Person(i, null, null));
-				}
+				lifeThread.Start();
+				while (!lifeThread.IsAlive) ;
 
-				_NewPeopleQuantity = 0;
-				_Dead = new List<Guid>();
+				lifeThread.Join();
+
+				////////////
+
+				var birth = new BirthProcess(i);
+				var birthThread = new Thread(new ThreadStart(birth.DoWork));
+
+				birthThread.Start();
+				while (!birthThread.IsAlive);
+
+				birthThread.Join();
+
+				////////////
+
+				var death = new DeathProcess();
+				var deathThread = new Thread(new ThreadStart(death.DoWork));
+
+				deathThread.Start();
+				while (!deathThread.IsAlive);
+
+				deathThread.Join();
+
 			}
 
 			Console.WriteLine("Year {0}: {1} People", _EndYear, _People.Count);
