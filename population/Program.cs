@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -7,6 +8,18 @@ using System.Threading.Tasks;
 
 namespace population
 {
+
+	public static class Enumerable
+	{
+		public static IEnumerable<long> Range(int start, long count)
+		{
+			var end = start + count;
+			for (var current = start; current < end; ++current)
+			{
+				yield return current;
+			}
+		}
+	}
 	class Program
 	{
 		private static int _InitialPopulationMale = 0;
@@ -33,7 +46,7 @@ namespace population
 			{
 				Id = Guid.NewGuid();
 				BirthYear = birthYear;
-				IsFemale = isFemale ?? rnd.Next(0,999) < 500;
+				IsFemale = isFemale ?? rnd.Next(0, 999) < 500;
 
 				if (IsFemale)
 				{
@@ -81,8 +94,8 @@ namespace population
 			public void DoWork()
 			{
 
-				_People.RemoveAll(x=> _People.Where(y=>y.Age >= _AverageLifeSpan).Select(y=>y.Id).Contains(x.Id));
-					
+				_People.RemoveAll(x => _People.Where(y => y.Age >= _AverageLifeSpan).Select(y => y.Id).Contains(x.Id));
+
 				//viable is who's left
 
 				_NewPeopleQuantity = _People
@@ -93,7 +106,6 @@ namespace population
 
 				_People.AddRange(Enumerable.Range(1, _NewPeopleQuantity).Select(x => new Person(_thisYear, null, null)));
 
-				_NewPeopleQuantity = 0;
 
 				_People.ForEach(x => x.Age += 1);
 			}
@@ -128,6 +140,9 @@ namespace population
 
 			rnd = new Random();
 
+			var stp = new Stopwatch();
+			stp.Start();
+
 			for (int i = 0; i < _InitialPopulationMale; i++)
 			{
 				_People.Add(new Person(0, false, false));
@@ -140,15 +155,43 @@ namespace population
 
 			for (int i = 0; i < _EndYear; i++)
 			{
-				Console.WriteLine("Year {0}: {1} People", i, _People.Count);
+				var init = stp.ElapsedMilliseconds;
+				Console.WriteLine("Year {0}: {1} People", i, _People.Count(x => x.Age < _AverageLifeSpan));
+				//Console.WriteLine("YEAR {0}", i);
+				//var life = new LifeProcess(i);
+				//var lifeThread = new Thread(new ThreadStart(life.DoWork));
 
-				var life = new LifeProcess(i);
-				var lifeThread = new Thread(new ThreadStart(life.DoWork));
+				//lifeThread.Start();
+				//while (!lifeThread.IsAlive) ;
 
-				lifeThread.Start();
-				while (!lifeThread.IsAlive) ;
+				//lifeThread.Join();
 
-				lifeThread.Join();
+				var a = stp.ElapsedMilliseconds;
+				Console.WriteLine("A:{0}", a - init);
+				//_People.RemoveAll(x => _People.Where(y => y.Age >= _AverageLifeSpan).Select(y => y.Id).Contains(x.Id));
+
+				//viable is who's left
+
+				var b = stp.ElapsedMilliseconds;
+				Console.WriteLine("B:{0}", b - a);
+				long newPeeps = _People
+					.Where(x => x.Age < _AverageLifeSpan && x.IsFemale && x.WillReproduce)
+					.Where(x => x.Age >= _ReproductiveStartAge && x.Age < _ReproductiveEndAge)
+					.Where(x => (x.Age - _ReproductiveStartAge) % _YearsBetweenChildren == 0)
+					.Count();
+
+				var c = stp.ElapsedMilliseconds;
+				Console.WriteLine("C:{0}", c - b);
+				_People.AddRange(Enumerable.Range(1, newPeeps).Select(x => new Person(i, null, null)));
+
+
+				var d = stp.ElapsedMilliseconds;
+				Console.WriteLine("D:{0}", d - c);
+				_People.ForEach(x => x.Age += (x.Age < _AverageLifeSpan ? 1 : 0));
+
+
+				var e = stp.ElapsedMilliseconds;
+				Console.WriteLine("E:{0}", e - d);
 			}
 
 			Console.WriteLine("Year {0}: {1} People", _EndYear, _People.Count);
