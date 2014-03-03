@@ -42,8 +42,6 @@ namespace population
 
 		//////////////////
 
-		private static Random rnd;
-
 		class Person
 		{
 			public Guid Id { get; set; }
@@ -60,23 +58,29 @@ namespace population
 			{
 				Id = Guid.NewGuid();
 				BirthYear = birthYear;
-				IsFemale = isFemale ?? rnd.Next(0, 999) < 500;
+				IsFemale = isFemale ?? SimpleRNG.GetUniform() < 0.5;
 
 				if (IsFemale)
 				{
-					WillReproduce = willReproduce ?? rnd.Next(0, 999) < (_PercentReproductiveFemales * 1000);
+					WillReproduce = willReproduce ?? (SimpleRNG.GetUniform() < (_PercentReproductiveFemales / 100.0000));
 
 					if (WillReproduce)
 					{
-						_ReproductiveStartAge = (int)(SimpleRNG.GetGamma(2, 0.5) * (_MaximumReproductiveAge - _MinimumReproductiveAge)) + _MinimumReproductiveAge;
-						_ReproductiveEndAge = (int)(SimpleRNG.GetBeta(5, 2) * (_MaximumReproductiveAge - _MinimumReproductiveAge)) + _MinimumReproductiveAge;
+						_ReproductiveStartAge = (int)(NormalizeGamma(SimpleRNG.GetGamma(2, 4), 32) * ((_MaximumReproductiveAge - _MinimumReproductiveAge) / 2)) + _MinimumReproductiveAge;
+						_ReproductiveEndAge = (int)((1 - NormalizeGamma(SimpleRNG.GetGamma(2, 2), 14)) * ((_MaximumReproductiveAge - _MinimumReproductiveAge) / 2)) + _MinimumReproductiveAge + (int)((_MaximumReproductiveAge - _MinimumReproductiveAge) / 2);
 						_AgeAtNextBirth = _ReproductiveStartAge;
 					}
 				}
 
-				_LifeSpan = fullLife ? _MaxLifeSpan : (int)(SimpleRNG.GetBeta(5, 2) * _MaxLifeSpan);
+				_LifeSpan = fullLife ? _MaxLifeSpan : (int)((1 - NormalizeGamma(SimpleRNG.GetGamma(2, 2), 14)) * _MaxLifeSpan);
 
-				Console.WriteLine("Life: {0}, ReproStart: {1}, ReproEnd: {2}", _LifeSpan, _ReproductiveStartAge, _ReproductiveEndAge);
+				//Console.WriteLine("Life: {0}, ReproStart: {1}, ReproEnd: {2}", _LifeSpan, _ReproductiveStartAge, _ReproductiveEndAge);
+				//_Ages.Add(_LifeSpan);
+				//if (WillReproduce)
+				//{
+				//	_ReproStarts.Add(_ReproductiveStartAge);
+				//	_ReproEnds.Add(_ReproductiveEndAge);
+				//}
 			}
 
 			public int Age
@@ -122,13 +126,15 @@ namespace population
 		}
 
 
-		private static List<Person> _People;
+		private static C5.ArrayList<Person> _People;
+		//private static List<int> _Ages;
+		//private static List<int> _ReproStarts;
+		//private static List<int> _ReproEnds;
 
 		static void Main(string[] args)
 		{
 
 			InitAndRun();
-
 
 
 		}
@@ -169,8 +175,10 @@ namespace population
 
 		private static void RunNumbers()
 		{
-			_People = new List<Person>();
-			rnd = new Random();
+			_People = new C5.ArrayList<Person>();
+			//_Ages = new List<int>();
+			//_ReproStarts = new List<int>();
+			//_ReproEnds = new List<int>();
 
 			//var stp = new Stopwatch();
 			//stp.Start();
@@ -188,13 +196,19 @@ namespace population
 			for (int i = 0; i < _EndYear; i++)
 			{
 				_CurrentYear = i;
-				Console.WriteLine("Year {0}: {1} People", i, _People.Count(x => x.IsAlive).ToString("#,##0"));
+				//Console.Write(".");
+				//Console.WriteLine("Year {0}", i);
+
+				_People.RemoveAll(_People.Where(y => !y.IsAlive));
+				Console.WriteLine("Year {0}: {1} People", i, _People.Count().ToString("#,##0"));
 				long newPeeps = _People.Count(x => x.IsMakinABaby);
-				_People.AddRange(Enumerable.Range(1, newPeeps).Select(x => new Person(i, null, null, false)));
+				newPeeps = (long)(newPeeps * 1.04); // account for twins, triplets, etc based upon estimate from http://www.cdc.gov/nchs/fastats/multiple.htm (33.1 twins per 1000, 3x or higeher 124.4/100,000)
+				_People.AddAll(Enumerable.Range(1, newPeeps).Select(x => new Person(i, null, null, false)));
 
 			}
 
-			Console.WriteLine("Year {0}: {1} People", _EndYear, _People.Count(x => x.IsAlive).ToString("#,##0"));
+			//Console.WriteLine("Year {0}: {1} People, Avg age: {2}, Avg Repro Start: {3}, Avg Repro End: {4}", _EndYear, _People.Count(x => x.IsAlive).ToString("#,##0"), _Ages.Average(), _ReproStarts.Average(), _ReproEnds.Average());
+			Console.WriteLine("Year {0}: {1} People", _EndYear, _People.Count().ToString("#,##0"));
 			Console.WriteLine("-----");
 			Console.WriteLine("DONE");
 			Console.WriteLine("-----");
@@ -214,6 +228,13 @@ namespace population
 			{
 				// quit
 			}
+		}
+
+		private static double NormalizeGamma(double val, double thebase)
+		{
+			var k = val / thebase;
+			if (k > 1) return 1;
+			return k;
 		}
 	}
 }
